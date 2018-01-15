@@ -173,5 +173,4 @@ if __name__ == '__main__':
     if not os.path.exists(database_path):
         build_db()
 
-    # app.run(debug=True)
-    app.run(port=80)
+    app.run(debug=True)
