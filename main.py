@@ -1,4 +1,3 @@
-
 import os
 import os.path as op
 from flask import Flask
@@ -15,6 +14,7 @@ from flask_admin.contrib.sqla import filters
 # 创建应用
 app = Flask(__name__)
 
+# 多语言支持
 babel = Babel(app)
 
 # 加载配置
@@ -51,6 +51,7 @@ class Equipment(db.Model):
     # 备注
     remark = db.Column(db.Text, nullable=True)
 
+    # 外键 部门ID
     department_id = db.Column(db.Integer(), db.ForeignKey(Department.id))
     department = db.relationship(Department, backref='equipments')
 
@@ -59,11 +60,13 @@ class Equipment(db.Model):
 
 
 # 视图
+
+# 默认首页
 @app.route('/')
 def index():
     return '<a href="/admin/">Click me to get to Admin!</a>'
 
-
+# 部门管理相关视图
 class DepartmentAdmin(sqla.ModelView):
     column_sortable_list = ('name', )
     column_labels = dict(name='部门名称', equipments='设备')
@@ -73,11 +76,13 @@ class DepartmentAdmin(sqla.ModelView):
     #     # Just call parent class with predefined model.
     #     super(DepartmentAdmin, self).__init__(Department, session)
 
-
+# 设备管理相关视图
 class EquipmentAdmin(sqla.ModelView):
 
+    # 配置可排序字段
     column_sortable_list = ('name', ('department', 'department.name'), 'date')
 
+    # 配置各字段显示名称
     column_labels = dict(
         name='设备名称',
         model='设备型号',
@@ -88,8 +93,10 @@ class EquipmentAdmin(sqla.ModelView):
         department='部门名称'
     )
 
+    # 配置可搜索字段
     column_searchable_list = ('name', Department.name, 'model', 'code', 'date')
 
+    # 配置字段必填
     form_args = dict(
         name=dict(label='设备名称', validators=[validators.required()]),
         model=dict(label='设备型号', validators=[validators.required()]),
@@ -104,6 +111,7 @@ class EquipmentAdmin(sqla.ModelView):
     #     },
     # }
 
+    # 配置下拉项字段候选集
     form_choices = {
         'status': [
             ('0', '未分配'),
@@ -117,13 +125,18 @@ class EquipmentAdmin(sqla.ModelView):
     #     super(EquipmentAdmin, self).__init__(Equipment, session)
 
 
+# 创建管理系统
 admin = Admin(app, name='设备管理系统', template_mode='bootstrap3')
 
+# 加载社稷
 admin.add_view(DepartmentAdmin(Department, db.session, name='部门管理'))
 admin.add_view(EquipmentAdmin(Equipment, db.session, name='设备管理'))
 
 
+
 def build_db():
+
+    """ 生成测试数据 """
 
     import random
     import datetime
