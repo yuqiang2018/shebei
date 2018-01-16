@@ -19,8 +19,6 @@
 
 ### 设备国内 pip 镜像源（加速安装扩展）
 
-
-
 把代码目录中的 pip 目录复制到 $HOME（个人文件夹）
 
 其它操作系统加速方案请看链接：https://www.cnblogs.com/ZhangRuoXu/p/6370107.html
@@ -31,7 +29,7 @@ https://github.com/wangyupeng/shebei/releases/tag/v1
 
 或使用 git 下载源码
 
-```git clone git@github.com:wangyupeng/shebei.git
+```git clone git@github.com:wangyupeng/shebei.git```
 
 ### 3、安装扩展包
 
@@ -42,7 +40,7 @@ https://github.com/wangyupeng/shebei/releases/tag/v1
 ```
 d:
 
-cd shebei\
+cd shebei
 ```
 
 ```pip install -r requirements.txt```
