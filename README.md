@@ -3,6 +3,8 @@
 
 ![](admin_equipment.png)
 
+## Windows 部署教程
+
 ### 下载Python3
 
 #### windows 64位系统下载地址：
@@ -25,7 +27,7 @@
 
 ### 下载程序源码
 
-https://github.com/wangyupeng/shebei/releases/tag/v1
+https://github.com/wangyupeng/shebei/archive/master.zip
 
 或使用 git 下载源码
 
