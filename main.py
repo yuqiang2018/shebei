@@ -6,6 +6,8 @@ from flask_admin import Admin
 from config import DevConfig
 from flask_babelex import Babel
 
+from flask_admin.model import typefmt
+
 from wtforms import validators
 
 from flask_admin.contrib import sqla
@@ -23,10 +25,10 @@ app.config.from_object(DevConfig)
 db = SQLAlchemy(app)
 
 
-# 创建模型
-
-# 部门模型
 class Department(db.Model):
+
+    """部门模型"""
+
     id = db.Column(db.Integer, primary_key=True)
     # 部门名称
     name = db.Column(db.Unicode(64))
@@ -35,8 +37,10 @@ class Department(db.Model):
         return self.name
 
 
-# 设备模型
 class Equipment(db.Model):
+
+    """设备模型"""
+
     id = db.Column(db.Integer, primary_key=True)
     # 设备名称
     name = db.Column(db.Unicode(500))
@@ -61,26 +65,63 @@ class Equipment(db.Model):
 
 # 视图
 
-# 默认首页
 @app.route('/')
 def index():
+
+    """默认首页"""
+
     return '<a href="/admin/">Click me to get to Admin!</a>'
 
-# 部门管理相关视图
+
 class DepartmentAdmin(sqla.ModelView):
+
+    """部门管理相关视图"""
+
     column_sortable_list = ('name', )
     column_labels = dict(name='部门名称', equipments='设备')
     column_searchable_list = ('name', )
+
+    # 可用于行内编辑
+    column_editable_list = ['name', ]
 
     # def __init__(self, session):
     #     # Just call parent class with predefined model.
     #     super(DepartmentAdmin, self).__init__(Department, session)
 
-# 设备管理相关视图
+
+def format_status(status):
+
+    """格式化状态码的显示"""
+
+    status = str(status)
+
+    status_list = {'0':'新增', '1':'使用中', '2':'维修中', '3':'报废'}
+
+    return status_list[status]
+
+
 class EquipmentAdmin(sqla.ModelView):
+
+    """设备管理相关视图"""
+
 
     # 配置可排序字段
     column_sortable_list = ('name', ('department', 'department.name'), 'date')
+
+    # 可用于行内编辑
+    column_editable_list = ['name', 'status']
+
+    # 配置下拉项字段候选集
+    form_choices = {
+        'status': [
+            ('0', '新增'),
+            ('1', '使用中'),
+            ('2', '维修中'),
+            ('3', '报废')
+        ]
+    }
+
+    column_formatters = dict(status=lambda v, c, m, p: format_status(m.status))
 
     # 配置各字段显示名称
     column_labels = dict(
@@ -92,6 +133,7 @@ class EquipmentAdmin(sqla.ModelView):
         remark='备注',
         department='部门名称'
     )
+
 
     # 配置可搜索字段
     column_searchable_list = ('name', Department.name, 'model', 'code', 'date')
@@ -111,14 +153,6 @@ class EquipmentAdmin(sqla.ModelView):
     #     },
     # }
 
-    # 配置下拉项字段候选集
-    form_choices = {
-        'status': [
-            ('0', '未分配'),
-            ('1', '维修中'),
-            ('2', '报废')
-        ]
-    }
 
     # def __init__(self, session):
     #     # Just call parent class with predefined model.
