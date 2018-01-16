@@ -121,6 +121,7 @@ class EquipmentAdmin(sqla.ModelView):
         ]
     }
 
+    # 字段值格式化
     column_formatters = dict(status=lambda v, c, m, p: format_status(m.status))
 
     # 配置各字段显示名称
