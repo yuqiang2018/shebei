@@ -77,6 +77,12 @@ class DepartmentAdmin(sqla.ModelView):
 
     """部门管理相关视图"""
 
+    # 可以导出
+    can_export = True
+
+    # 导出格式为excel
+    export_types = ['xlsx']
+
     column_sortable_list = ('name', )
     column_labels = dict(name='部门名称', equipments='设备')
     column_searchable_list = ('name', )
@@ -103,6 +109,12 @@ def format_status(status):
 class EquipmentAdmin(sqla.ModelView):
 
     """设备管理相关视图"""
+
+    # 可以导出
+    can_export = True
+
+    # 导出格式为excel
+    export_types = ['xlsx']
 
 
     # 配置可排序字段
@@ -147,17 +159,6 @@ class EquipmentAdmin(sqla.ModelView):
         date=dict(label='购买日期', validators=[validators.required()]),
         status=dict(label='设备状态', validators=[validators.required()])
     )
-
-    # form_ajax_refs = {
-    #     'department': {
-    #         'fields': (Department.name, )
-    #     },
-    # }
-
-
-    # def __init__(self, session):
-    #     # Just call parent class with predefined model.
-    #     super(EquipmentAdmin, self).__init__(Equipment, session)
 
 
 # 创建管理系统
