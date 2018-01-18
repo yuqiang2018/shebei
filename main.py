@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+
+__author__ = 'W.Y.P'
+__version__ = "1.0.1"
+__email__ = "wyp@41ms.com"
+__date__ = '2018/1/18'
+
+
 import os
 import os.path as op
 import xlrd
