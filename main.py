@@ -1,17 +1,17 @@
 import os
 import os.path as op
+import xlrd
+import re
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from config import DevConfig
 from flask_babelex import Babel
 
-from flask_admin.model import typefmt
 
 from wtforms import validators
 
 from flask_admin.contrib import sqla
-from flask_admin.contrib.sqla import filters
 
 # 创建应用
 app = Flask(__name__)
@@ -31,7 +31,7 @@ class Department(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     # 部门名称
-    name = db.Column(db.Unicode(64))
+    name = db.Column(db.Unicode(64), unique=True)
 
     def __str__(self):
         return self.name
@@ -51,7 +51,7 @@ class Equipment(db.Model):
     # 设备状态
     status = db.Column(db.Integer)
     # 购买日期
-    date = db.Column(db.DateTime)
+    date = db.Column(db.Date)
     # 备注
     remark = db.Column(db.Text, nullable=True)
 
@@ -89,10 +89,6 @@ class DepartmentAdmin(sqla.ModelView):
 
     # 可用于行内编辑
     column_editable_list = ['name', ]
-
-    # def __init__(self, session):
-    #     # Just call parent class with predefined model.
-    #     super(DepartmentAdmin, self).__init__(Department, session)
 
 
 def format_status(status):
@@ -156,7 +152,6 @@ class EquipmentAdmin(sqla.ModelView):
         name=dict(label='设备名称', validators=[validators.required()]),
         model=dict(label='设备型号', validators=[validators.required()]),
         code=dict(label='设备编码', validators=[validators.required()]),
-        date=dict(label='购买日期', validators=[validators.required()]),
         status=dict(label='设备状态', validators=[validators.required()])
     )
 
@@ -164,7 +159,7 @@ class EquipmentAdmin(sqla.ModelView):
 # 创建管理系统
 admin = Admin(app, name='设备管理系统', template_mode='bootstrap3')
 
-# 加载社稷
+# 加载视图
 admin.add_view(DepartmentAdmin(Department, db.session, name='部门管理'))
 admin.add_view(EquipmentAdmin(Equipment, db.session, name='设备管理'))
 
@@ -174,46 +169,54 @@ def build_db():
 
     """ 生成测试数据 """
 
-    import random
-    import datetime
-    from random import choice
-
     db.drop_all()
     db.create_all()
 
-    equipment_names = [
-        '打印机', '饮水机', '打火机', '灯泡', '水杯', '手机', '充电器', '电池', '电话', '电脑', '显示器', '键盘',
-        '鼠标', '水壶', '桌子', '椅子', '风扇', '插座', '插头', '手表', '现金', '银行卡', '饮料', '白酒', '菜叶',
-        '胸卡', '一卡通', '门禁卡', '耳机'
-    ]
+    # 通过 excel 导入测试数据
+    data = xlrd.open_workbook('demo.xlsx')
 
-    department_names = [
-        '人力资源部', '党委办', '客户经理部', '计划财务部', '监察室'
-    ]
+    table = data.sheets()[0]
 
-    department_list = []
-    for i in range(len(department_names)):
-        department = Department()
-        department.name = department_names[i]
-        department_list.append(department)
-        db.session.add(department)
+    nrows = table.nrows
 
+    for i in range(nrows):
 
-    for i in range(len(equipment_names)):
+        # 从第二行开始
+        if i == 0:
+            continue
+
+        datetime = None
+
+        try:
+            datetime = xlrd.xldate.xldate_as_datetime(table.cell(i, 6).value, 0)
+        except (ValueError, TypeError):
+            pass
+
+        # 首先增加部门数据
+        department_name = str(table.cell(i, 1).value)
+        department_name = re.sub('\s', '', department_name)
+
+        department = Department.query.filter_by(name=department_name).first()
+
+        # 新增部门
+        if not department:
+            department = Department()
+            department.name = department_name
+            db.session.add(department)
+
+        # 增加设备数据
         equipment = Equipment()
-        equipment.name = equipment_names[i]
-        equipment.model = 'DN' + str(random.randint(0, 9))
-        equipment.code = 'SN' + str(random.randint(100, 999))
-        equipment.status = 0
-        equipment.date = datetime.datetime.now()
-        equipment.department = choice(department_list)
+        equipment.name = str(table.cell(i, 2).value)
+        equipment.model = str(table.cell(i, 3).value)
+        equipment.code = str(table.cell(i, 4).value)
+        equipment.status = 1
+        equipment.date = datetime
+        equipment.department = department
         db.session.add(equipment)
-
 
     db.session.commit()
 
     return
-
 
 if __name__ == '__main__':
     app_dir = op.realpath(os.path.dirname(__file__))
