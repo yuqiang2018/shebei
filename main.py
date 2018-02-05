@@ -6,20 +6,17 @@ __version__ = "1.0.1"
 __email__ = "wyp@41ms.com"
 __date__ = '2018/1/18'
 
-
 import os
 import os.path as op
 import xlrd
 import re
+import configparser
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from config import DevConfig
 from flask_babelex import Babel
-
-
 from wtforms import validators
-
 from flask_admin.contrib import sqla
 
 # 创建应用
@@ -33,9 +30,38 @@ app.config.from_object(DevConfig)
 
 db = SQLAlchemy(app)
 
+# 定义模型
+roles_users = db.Table(
+    'roles_users',
+    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+    db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
+)
+
+
+class Role(db.Model):
+    """角色模型"""
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
+
+    def __str__(self):
+        return self.name
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True)
+    email = db.Column(db.String(255), unique=True)
+    password = db.Column(db.String(255))
+    date = db.Column(db.Date)
+    roles = db.relationship('Role', secondary=roles_users,
+                            backref=db.backref('users', lazy='dynamic'))
+
+    def __str__(self):
+        return self.name
+
 
 class Department(db.Model):
-
     """部门模型"""
 
     id = db.Column(db.Integer, primary_key=True)
@@ -47,7 +73,6 @@ class Department(db.Model):
 
 
 class Equipment(db.Model):
-
     """设备模型"""
 
     id = db.Column(db.Integer, primary_key=True)
@@ -72,47 +97,94 @@ class Equipment(db.Model):
         return self.name + ' | ' + self.model + ' | ' + self.code
 
 
+# user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+
+
 # 视图
 
 @app.route('/')
 def index():
-
     """默认首页"""
-
     return '<a href="/admin/">Click me to get to Admin!</a>'
 
 
-class DepartmentAdmin(sqla.ModelView):
-
-    """部门管理相关视图"""
+class UserAdmin(sqla.ModelView):
+    """用户管理相关视图"""
 
     # 可以导出
     can_export = True
+    can_create = True
+    can_delete = True
+    can_edit = True
 
     # 导出格式为excel
     export_types = ['xlsx']
 
-    column_sortable_list = ('name', )
+    column_sortable_list = ('name',)
+    column_labels = dict(name='用户名', password='密码', date='添加日期', roles='角色', email='邮箱')
+
+    # 配置字段必填
+    form_args = dict(
+        name=dict(label='用户名', validators=[validators.required()]),
+        password=dict(label='密码', validators=[validators.required()]),
+    )
+
+    column_searchable_list = ('name',)
+
+
+class RoleAdmin(sqla.ModelView):
+    """角色管理相关视图"""
+
+    # 可以导出
+    can_export = True
+    can_create = True
+    can_delete = True
+    can_edit = True
+
+    # 导出格式为excel
+    export_types = ['xlsx']
+
+    # 配置字段必填
+    form_args = dict(
+        name=dict(label='角色名称', validators=[validators.required()]),
+    )
+
+    column_sortable_list = ('name',)
+    column_labels = dict(name='角色名称', description='角色描述', users='用户')
+    column_searchable_list = ('name', 'description')
+
+
+class DepartmentAdmin(sqla.ModelView):
+    """部门管理相关视图"""
+
+    # 可以导出
+    can_export = True
+    can_create = True
+    can_delete = True
+    can_edit = True
+
+    # 导出格式为excel
+    export_types = ['xlsx']
+
+    column_sortable_list = ('name',)
     column_labels = dict(name='部门名称', equipments='设备')
-    column_searchable_list = ('name', )
+    column_searchable_list = ('name',)
 
     # 可用于行内编辑
     column_editable_list = ['name', ]
 
 
 def format_status(status):
-
     """格式化状态码的显示"""
 
     status = str(status)
 
-    status_list = {'0':'新增', '1':'使用中', '2':'维修中', '3':'报废'}
+    status_list = {'0': '新增', '1': '使用中', '2': '维修中', '3': '报废'}
 
     return status_list[status]
 
 
 class EquipmentAdmin(sqla.ModelView):
-
     """设备管理相关视图"""
 
     # 可以导出
@@ -120,7 +192,6 @@ class EquipmentAdmin(sqla.ModelView):
 
     # 导出格式为excel
     export_types = ['xlsx']
-
 
     # 配置可排序字段
     column_sortable_list = ('name', ('department', 'department.name'), 'date')
@@ -152,7 +223,6 @@ class EquipmentAdmin(sqla.ModelView):
         department='部门名称'
     )
 
-
     # 配置可搜索字段
     column_searchable_list = ('name', Department.name, 'model', 'code', 'date')
 
@@ -171,11 +241,11 @@ admin = Admin(app, name='设备管理系统', template_mode='bootstrap3')
 # 加载视图
 admin.add_view(DepartmentAdmin(Department, db.session, name='部门管理'))
 admin.add_view(EquipmentAdmin(Equipment, db.session, name='设备管理'))
-
+admin.add_view(UserAdmin(User, db.session, name='用户管理'))
+admin.add_view(RoleAdmin(Role, db.session, name='角色管理'))
 
 
 def build_db():
-
     """ 生成测试数据 """
 
     db.drop_all()
@@ -223,9 +293,22 @@ def build_db():
         equipment.department = department
         db.session.add(equipment)
 
+    # 增加用户和角色测试数据
+    user_role = Role(name='user')
+    admin_user_role = Role(name='admin')
+    db.session.add(user_role)
+    db.session.add(admin_user_role)
+    db.session.commit()
+
+    user = User()
+    user.name = 'admin'
+    user.password = 'admin'
+    user.roles = [user_role, admin_user_role]
+
     db.session.commit()
 
     return
+
 
 if __name__ == '__main__':
     app_dir = op.realpath(os.path.dirname(__file__))
