@@ -18,6 +18,8 @@ from config import DevConfig
 from flask_babelex import Babel
 from wtforms import validators
 from flask_admin.contrib import sqla
+from datetime import datetime
+import json
 
 # 创建应用
 app = Flask(__name__)
@@ -67,6 +69,18 @@ class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # 部门名称
     name = db.Column(db.Unicode(64), unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Logs(db.Model):
+    """日志模型"""
+    id = db.Column(db.Integer, primary_key=True)
+    # 日志内容
+    content = db.Column(db.Text, nullable=True)
+
+    datetime = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def __str__(self):
         return self.name
@@ -174,6 +188,23 @@ class DepartmentAdmin(sqla.ModelView):
     column_editable_list = ['name', ]
 
 
+class LogsAdmin(sqla.ModelView):
+    """日志管理相关视图"""
+
+    # 可以导出
+    can_export = True
+    can_create = False
+    can_delete = False
+    can_edit = False
+
+    # 导出格式为excel
+    export_types = ['xlsx']
+
+    column_sortable_list = ('datetime',)
+    column_labels = dict(content='日志内容')
+    column_searchable_list = ('content',)
+
+
 def format_status(status):
     """格式化状态码的显示"""
 
@@ -234,6 +265,49 @@ class EquipmentAdmin(sqla.ModelView):
         status=dict(label='设备状态', validators=[validators.required()])
     )
 
+    def after_model_change(self, form, model, is_created):
+        log_content = {
+            '操作': False,
+            '数据ID': model.id,
+            '设备名称': model.name,
+            '设备编号': model.code,
+            '设备型号': model.model,
+            '购买日期': model.date.strftime("%Y-%m-%d"),
+            '状态': format_status(model.status),
+            '部门名称': model.department.name,
+            '备注': model.remark
+        }
+
+        if is_created:
+            log_content['操作'] = '新增'
+        else:
+            log_content['操作'] = '更新'
+
+            log_model = Logs(content=json.dumps(log_content, ensure_ascii=False))
+            db.session.add(log_model)
+            db.session.commit()
+
+        print(log_content)
+
+    def after_model_delete(self, model):
+        log_content = {
+            '操作': '删除',
+            '数据ID': model.id,
+            '设备名称': model.name,
+            '设备编号': model.code,
+            '设备型号': model.model,
+            '购买日期': model.date.strftime("%Y-%m-%d"),
+            '状态': format_status(model.status),
+            '部门名称': model.department.name,
+            '备注': model.remark
+        }
+
+        log_model = Logs(content=json.dumps(log_content, ensure_ascii=False))
+        db.session.add(log_model)
+        db.session.commit()
+
+        print(log_content)
+
 
 # 创建管理系统
 admin = Admin(app, name='设备管理系统', template_mode='bootstrap3')
@@ -241,8 +315,9 @@ admin = Admin(app, name='设备管理系统', template_mode='bootstrap3')
 # 加载视图
 admin.add_view(DepartmentAdmin(Department, db.session, name='部门管理'))
 admin.add_view(EquipmentAdmin(Equipment, db.session, name='设备管理'))
-admin.add_view(UserAdmin(User, db.session, name='用户管理'))
-admin.add_view(RoleAdmin(Role, db.session, name='角色管理'))
+# admin.add_view(UserAdmin(User, db.session, name='用户管理'))
+# admin.add_view(RoleAdmin(Role, db.session, name='角色管理'))
+admin.add_view(LogsAdmin(Logs, db.session, name='日志管理'))
 
 
 def build_db():
@@ -304,8 +379,6 @@ def build_db():
     user.name = 'admin'
     user.password = 'admin'
     user.roles = [user_role, admin_user_role]
-
-    db.session.commit()
 
     return
 
