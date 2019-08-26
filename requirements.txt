@@ -25,7 +25,7 @@ speaklater==1.3
 SQLAlchemy==1.1.15
 tablib==0.12.1
 unicodecsv==0.14.1
-Werkzeug==0.13
+Werkzeug==0.15.3
 WTForms==2.1
 xlrd==1.1.0
 xlwt==1.3.0
